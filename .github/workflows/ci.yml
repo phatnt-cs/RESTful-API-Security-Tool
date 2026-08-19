@@ -1,0 +1,80 @@
+name: RESTful API Security Tool - CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  schedule:
+    - cron: "0 1 * * *"
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: pip install .
+
+      - name: Build and start vulnerable API
+        run: docker compose up -d --build
+
+      - name: Wait for API
+        run: |
+          python - <<'PY'
+          import time
+          import requests
+
+          url = "http://127.0.0.1:5000/api/users"
+
+          for _ in range(30):
+              try:
+                  response = requests.get(url, timeout=2)
+
+                  if response.status_code < 500:
+                      print("API is ready")
+                      break
+
+              except requests.RequestException:
+                  pass
+
+              time.sleep(1)
+
+          else:
+              raise SystemExit("API did not become ready")
+          PY
+
+      - name: Run users security scan
+        run: |
+          python -m restful_api_pentest.cli \
+            -u http://127.0.0.1:5000/api/users \
+            --output-dir reports \
+            --fail-on-high
+        continue-on-error: true
+
+      - name: Run search injection scan
+        run: |
+          python -m restful_api_pentest.cli \
+            -u "http://127.0.0.1:5000/api/search?q=test" \
+            -p payloads/sql.txt \
+            --output-dir reports \
+            --fail-on-high
+        continue-on-error: true
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-security-reports
+          path: reports/
+
+      - name: Stop API
+        if: always()
+        run: docker compose down
