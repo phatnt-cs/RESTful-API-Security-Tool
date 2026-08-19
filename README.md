@@ -15,6 +15,8 @@ This document ensures consistency and maintainability across:
 - project documentation.
 
 ---
+## 📄 Documentation
+* **Detailed Thesis Report:** [Read Full Report on Google Drive](https://drive.google.com/file/d/1R1T9LBEQbhECTE0N9PU7xrOP0H2aNIG1/view?usp=drive_link)
 
 ## Project objectives
 
